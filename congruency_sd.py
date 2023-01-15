@@ -22,45 +22,67 @@ import shutil
 from huggingface_hub import HfApi
 api = HfApi()
 
-random.seed(42)
 app = Flask(__name__)
 
 # Set variables.
-IMAGE_PATH = '/static/val_sd_v1-5_finetuned/top_images/'
+IMAGE_PATH = '/static/val_sd_v1-5_finetuned/images/'
 
-def sort_by_clipscore():
+def sort_by_clipscore(reverse=False):
     with open("static/val_sd_v1-5_finetuned/sd_v15_finetuned_val_clipscore.json", "r") as input_json:
         data = json.load(input_json)
-        sorted_data = sorted(data.items(), key=lambda x: x[1]["RefCLIPScore"])
+        sorted_data = sorted(data.items(), key=lambda x: x[1]["RefCLIPScore"], reverse=reverse)
         validation_images = [x[0]+".jpg" for x in sorted_data]
         return validation_images
 
+def sort_by_loss(reverse=False):
+    with open("static/val_sd_v1-5_finetuned/sd_v15_finetuned_val_loss.json", "r") as input_json:
+        data = json.load(input_json)
+        sorted_data = sorted(data, key=lambda x: x["loss_val"], reverse=reverse)
+        validation_images = [x["image_id"]+".jpg" for x in sorted_data]
+        return validation_images
+
+with open("static/val_sd_v1-5_finetuned/annotation/sd_ann.json", "r") as input_json:
+    val_ann = json.load(input_json)
+    val_ann_dict = {x["image"]:x["caption"] for x in val_ann}
+    references = defaultdict(list)
+
 # Get image names.
-# with open("static/val_sd_v1-5_finetuned/annotation/val_epoch0.json", "r") as f:
+# with open("static/val_sd_v1-5_finetuned/annotation/sd_v15_finetuned_val_loss.json", "r") as f:
 #     val_data =  json.load(f)
 #     validation_images = [d["image_id"] + ".jpg" for d in val_data]
-validation_images = sort_by_clipscore()
-# for image in validation_images:
-#     shutil.copy(os.path.join("/Users/wli/ErrorAnalysis/static/val_sd_v1-5_finetuned/images",  image), os.path.join("/Users/wli/ErrorAnalysis/static/val_sd_v1-5_finetuned/top_images",  image))
+sorted_images = sort_by_loss()#sort_by_clipscore()
+low_score_images = sorted_images[:50]
+high_score_images = sorted_images[-50:]
+
+random.Random(42).shuffle(low_score_images)
+random.Random(42).shuffle(high_score_images)
+num_groups = 5
+
+validation_sets = []
+for i in range(num_groups):
+    validations = [low_score_images[10*i:10*(i+1)] + high_score_images[10*i:10*(i+1)]]
+    validation_sets.extend(validations)
+
+set_id = random.randint(0, 4)
+validation_images = validation_sets[set_id]
+# for image in high_score_images+low_score_images:
+#     if not os.path.exists(os.path.join("/Users/wli/ErrorAnalysis/static/val_sd_v1-5_finetuned/top_images",  image)):
+#         shutil.copy(os.path.join("/Users/wli/ErrorAnalysis/static/val_sd_v1-5_finetuned/images",  image), os.path.join("/Users/wli/ErrorAnalysis/static/val_sd_v1-5_finetuned/top_images",  image))
 # Get generated sentences.
 # generated_sentences = [d["caption"] for d in val_data]
 img2idx = {img:i for i,img in enumerate(validation_images)}
 idx2img = {i:img for i, img in enumerate(validation_images)}
 
 # Load all the reference sentences.
-with open("static/val_sd_v1-5_finetuned/annotation/sd_ann.json", "r") as input_json:
-    val_ann = json.load(input_json)
-    val_ann_dict = {x["image"]:x["caption"] for x in val_ann}
-    references = defaultdict(list)
-    for idx, image in enumerate(validation_images):
-        references[img2idx[image]] = [c for c in val_ann_dict[image] if len(c.split()) <20][:2]
-    generated_sentences = ["*"]*len(references)
+for idx, image in enumerate(validation_images):
+    references[img2idx[image]] = [c for c in val_ann_dict[image] if len(c.split()) <20][:2]
+generated_sentences = ["*"]*len(references)
     # for idx, d in enumerate(val_ann):
     #     if d["image"] in validation_images:
     #         references[img2idx[d["image"]]] = random.choices(d["caption"], k=2)
 
 # Modify this number if you want to annotate only a subset:
-total = 20#len(references) # Change len(reference) to e.g. 100
+total = len(validation_images)#len(references) # Change len(reference) to e.g. 100
 congruency = dict()
 
 assert len(references) == len(validation_images)
@@ -241,8 +263,22 @@ def categorize_incongruent():
 
 @app.route('/categorize_sd_errors/',methods=['GET','POST'])
 def categorize_sd_errors():
-    "Categorize the incongruent descriptions according to different error categories."
+    # retrieval random set from validation sets
+    set_id = random.randint(0, 4)
+    validation_images = validation_sets[set_id]
+    # for image in validation_images:
+    # if not os.path.exists(os.path.join("/Users/wli/ErrorAnalysis/static/val_sd_v1-5_finetuned/top_images",  image)):
+    #     shutil.copy(os.path.join("/Users/wli/ErrorAnalysis/static/val_sd_v1-5_finetuned/images",  image), os.path.join("/Users/wli/ErrorAnalysis/static/val_sd_v1-5_finetuned/top_images",  image))
+    # Get generated sentences.
+    # generated_sentences = [d["caption"] for d in val_data]
+    img2idx = {img: i for i, img in enumerate(validation_images)}
+    idx2img = {i: img for i, img in enumerate(validation_images)}
 
+    # Load all the reference sentences.
+    for idx, image in enumerate(validation_images):
+        references[img2idx[image]] = [c for c in val_ann_dict[image] if len(c.split()) < 20][:2]
+
+    #"Categorize the incongruent descriptions according to different error categories."
     # creaste sudo congruency data
     output_folder = os.path.join(os.getcwd(), "annotated")
     os.makedirs(output_folder, exist_ok=True)
@@ -273,7 +309,7 @@ def categorize_sd_errors():
         next_index = idx + 1
         if next_index == total:
             ts = round(datetime.now().timestamp())
-            output_path = os.path.join(output_folder, "sd_categorized_%s.json" % str(ts))
+            output_path = os.path.join(output_folder, "sd_categorized_%d_%s.json" % (set_id, str(ts)))
             with open(output_path, 'w') as f:
                 json.dump(incongruent_categories, f)
 
