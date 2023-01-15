@@ -73,8 +73,6 @@ def get_ann_set():
     global references
     global generated_sentences
 
-    with open("static/val_sd_v1-5_finetuned/ann_sets.json", "r") as ann_json:
-        validation_sets = json.load(ann_json)
     set_id = random.randint(0, 4)
     validation_images = validation_sets[set_id]
 
