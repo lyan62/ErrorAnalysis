@@ -1,0 +1,1 @@
+web: gunicorn congruency_sd:app --log-file=-
