@@ -17,6 +17,7 @@ import json
 import os
 from collections import defaultdict
 import random
+from datetime import datetime
 
 random.seed(42)
 app = Flask(__name__)
@@ -24,23 +25,35 @@ app = Flask(__name__)
 # Set variables.
 IMAGE_PATH = '/static/val_sd_v1-5_finetuned/images/'
 
+def sort_by_clipscore():
+    with open("static/val_sd_v1-5_finetuned/sd_v15_finetuned_val_clipscore.json", "r") as input_json:
+        data = json.load(input_json)
+        sorted_data = sorted(data.items(), key=lambda x: x[1]["RefCLIPScore"])
+        validation_images = [x[0]+".jpg" for x in sorted_data]
+        return validation_images
+
 # Get image names.
-with open("static/val_sd_v1-5_finetuned/annotation/val_epoch0.json", "r") as f:
-    val_data =  json.load(f)
-    validation_images = [d["image_id"] + ".jpg" for d in val_data]
+# with open("static/val_sd_v1-5_finetuned/annotation/val_epoch0.json", "r") as f:
+#     val_data =  json.load(f)
+#     validation_images = [d["image_id"] + ".jpg" for d in val_data]
+validation_images = sort_by_clipscore()
 
 # Get generated sentences.
-generated_sentences = [d["caption"] for d in val_data]
+# generated_sentences = [d["caption"] for d in val_data]
 img2idx = {img:i for i,img in enumerate(validation_images)}
 idx2img = {i:img for i, img in enumerate(validation_images)}
 
 # Load all the reference sentences.
 with open("static/val_sd_v1-5_finetuned/annotation/sd_ann.json", "r") as input_json:
     val_ann = json.load(input_json)
+    val_ann_dict = {x["image"]:x["caption"] for x in val_ann}
     references = defaultdict(list)
-    for idx, d in enumerate(val_ann):
-        if d["image"] in validation_images:
-            references[img2idx[d["image"]]] = random.choices(d["caption"], k=2)
+    for idx, image in enumerate(validation_images):
+        references[img2idx[image]] = [c for c in val_ann_dict[image] if len(c.split()) <20][:2]
+    generated_sentences = ["*"]*len(references)
+    # for idx, d in enumerate(val_ann):
+    #     if d["image"] in validation_images:
+    #         references[img2idx[d["image"]]] = random.choices(d["caption"], k=2)
 
 # Modify this number if you want to annotate only a subset:
 total = 20#len(references) # Change len(reference) to e.g. 100
@@ -229,8 +242,6 @@ def categorize_sd_errors():
     # creaste sudo congruency data
     output_folder = os.path.join(os.getcwd(), "annotated")
     os.makedirs(output_folder, exist_ok=True)
-    submission_id = len(glob.glob("*_categorized*.json"))
-    output_path = os.path.join(output_folder, "sd_categorized_%d.json" % submission_id)
     with open('sd_data.json', 'w') as f:
         sd_congruency = {i: "incongruent" for i in range(len(img2idx))}
         json.dump(sd_congruency, f)
@@ -257,6 +268,8 @@ def categorize_sd_errors():
         # Get the index for the next incongruent image.
         next_index = idx + 1
         if next_index == total:
+            ts = round(datetime.now().timestamp())
+            output_path = os.path.join(output_folder, "sd_categorized_%s.json" % str(ts))
             with open(output_path, 'w') as f:
                 json.dump(incongruent_categories, f)
             # Show the user that we are finished.
