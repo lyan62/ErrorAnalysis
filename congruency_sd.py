@@ -18,12 +18,13 @@ import os
 from collections import defaultdict
 import random
 from datetime import datetime
+import shutil
 
 random.seed(42)
 app = Flask(__name__)
 
 # Set variables.
-IMAGE_PATH = '/static/val_sd_v1-5_finetuned/images/'
+IMAGE_PATH = '/static/val_sd_v1-5_finetuned/top_images/'
 
 def sort_by_clipscore():
     with open("static/val_sd_v1-5_finetuned/sd_v15_finetuned_val_clipscore.json", "r") as input_json:
@@ -37,7 +38,8 @@ def sort_by_clipscore():
 #     val_data =  json.load(f)
 #     validation_images = [d["image_id"] + ".jpg" for d in val_data]
 validation_images = sort_by_clipscore()
-
+# for image in validation_images:
+#     shutil.copy(os.path.join("/Users/wli/ErrorAnalysis/static/val_sd_v1-5_finetuned/images",  image), os.path.join("/Users/wli/ErrorAnalysis/static/val_sd_v1-5_finetuned/top_images",  image))
 # Get generated sentences.
 # generated_sentences = [d["caption"] for d in val_data]
 img2idx = {img:i for i,img in enumerate(validation_images)}
