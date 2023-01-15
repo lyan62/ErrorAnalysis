@@ -19,6 +19,8 @@ from collections import defaultdict
 import random
 from datetime import datetime
 import shutil
+from huggingface_hub import HfApi
+api = HfApi()
 
 random.seed(42)
 app = Flask(__name__)
@@ -242,7 +244,7 @@ def categorize_sd_errors():
     "Categorize the incongruent descriptions according to different error categories."
 
     # creaste sudo congruency data
-    output_folder = os.path.join(os.getcwd(), "static","annotated")
+    output_folder = os.path.join(os.getcwd(), "annotated")
     os.makedirs(output_folder, exist_ok=True)
     with open('sd_data.json', 'w') as f:
         sd_congruency = {i: "incongruent" for i in range(len(img2idx))}
@@ -274,6 +276,15 @@ def categorize_sd_errors():
             output_path = os.path.join(output_folder, "sd_categorized_%s.json" % str(ts))
             with open(output_path, 'w') as f:
                 json.dump(incongruent_categories, f)
+
+            print("uploading to huggingface")
+            api.upload_file(
+                path_or_fileobj=output_path,
+                path_in_repo=os.path.basename(output_path),
+                repo_id="lyan62/sd-errors",
+                repo_type="dataset",
+                token="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"
+            )
             # Show the user that we are finished.
             return render_template('done.html',
                                     message="Saved judgment data to file: %s" % output_path)
