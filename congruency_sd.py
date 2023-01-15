@@ -25,7 +25,7 @@ api = HfApi()
 app = Flask(__name__)
 
 # Set variables.
-IMAGE_PATH = '/static/val_sd_v1-5_finetuned/images/'
+IMAGE_PATH = '/static/val_sd_v1-5_finetuned/top_images/'
 
 def sort_by_clipscore(reverse=False):
     with open("static/val_sd_v1-5_finetuned/sd_v15_finetuned_val_clipscore.json", "r") as input_json:
