@@ -242,7 +242,7 @@ def categorize_sd_errors():
     "Categorize the incongruent descriptions according to different error categories."
 
     # creaste sudo congruency data
-    output_folder = os.path.join("/static/annotated")
+    output_folder = os.path.join(os.getcwd(), "static","annotated")
     os.makedirs(output_folder, exist_ok=True)
     with open('sd_data.json', 'w') as f:
         sd_congruency = {i: "incongruent" for i in range(len(img2idx))}
