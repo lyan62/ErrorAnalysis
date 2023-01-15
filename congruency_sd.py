@@ -50,44 +50,71 @@ with open("static/val_sd_v1-5_finetuned/annotation/sd_ann.json", "r") as input_j
 # with open("static/val_sd_v1-5_finetuned/annotation/sd_v15_finetuned_val_loss.json", "r") as f:
 #     val_data =  json.load(f)
 #     validation_images = [d["image_id"] + ".jpg" for d in val_data]
-sorted_images = sort_by_loss()#sort_by_clipscore()
-low_score_images = sorted_images[:50]
-high_score_images = sorted_images[-50:]
+#sort_by_clipscore()
+# print(len(sorted_images))
+def build_validation_sets():
+    sorted_images = sort_by_loss()
+    low_score_images = sorted_images[:50]
+    high_score_images = sorted_images[-50:]
+    validation_sets = []
+    for i in range(5):
+        validations = [low_score_images[10*i:10*(i+1)] + high_score_images[10*i:10*(i+1)]]
+        validation_sets.extend(validations)
+    # random.Random(42).shuffle(low_score_images)
+    # random.Random(42).shuffle(high_score_images)
+    print(sum([len(s) for s in validation_sets]))
+    return validation_sets
 
-random.Random(42).shuffle(low_score_images)
-random.Random(42).shuffle(high_score_images)
-num_groups = 5
+def get_ann_set():
+    global set_id
+    global validation_images
+    global img2idx
+    global idx2img
+    global references
+    global generated_sentences
 
-validation_sets = []
-for i in range(num_groups):
-    validations = [low_score_images[10*i:10*(i+1)] + high_score_images[10*i:10*(i+1)]]
-    validation_sets.extend(validations)
+    with open("static/val_sd_v1-5_finetuned/ann_sets.json", "r") as ann_json:
+        validation_sets = json.load(ann_json)
+    set_id = random.randint(0, 4)
+    validation_images = validation_sets[set_id]
 
-set_id = random.randint(0, 4)
-validation_images = validation_sets[set_id]
+    # for image in high_score_images+low_score_images:
+    #     if not os.path.exists(os.path.join("/Users/wli/ErrorAnalysis/static/val_sd_v1-5_finetuned/top_images",  image)):
+    #         shutil.copy(os.path.join("/Users/wli/ErrorAnalysis/static/val_sd_v1-5_finetuned/images",  image), os.path.join("/Users/wli/ErrorAnalysis/static/val_sd_v1-5_finetuned/top_images",  image))
+    # Get generated sentences.
+    # generated_sentences = [d["caption"] for d in val_data]
+    img2idx = {img: i for i, img in enumerate(validation_images)}
+    idx2img = {i: img for i, img in enumerate(validation_images)}
+    for idx, image in enumerate(validation_images):
+        references[img2idx[image]] = [c for c in val_ann_dict[image] if len(c.split()) < 20][:2]
+    generated_sentences = ["*"] * len(references)
+    return set_id, validation_images, img2idx, idx2img, references, generated_sentences
+
+with open("static/val_sd_v1-5_finetuned/ann_sets.json", "r") as ann_json:
+    validation_sets = json.load(ann_json)
 # for image in high_score_images+low_score_images:
 #     if not os.path.exists(os.path.join("/Users/wli/ErrorAnalysis/static/val_sd_v1-5_finetuned/top_images",  image)):
 #         shutil.copy(os.path.join("/Users/wli/ErrorAnalysis/static/val_sd_v1-5_finetuned/images",  image), os.path.join("/Users/wli/ErrorAnalysis/static/val_sd_v1-5_finetuned/top_images",  image))
 # Get generated sentences.
 # generated_sentences = [d["caption"] for d in val_data]
-img2idx = {img:i for i,img in enumerate(validation_images)}
-idx2img = {i:img for i, img in enumerate(validation_images)}
+# img2idx = {img:i for i,img in enumerate(validation_images)}
+# idx2img = {i:img for i, img in enumerate(validation_images)}
 
 # Load all the reference sentences.
-for idx, image in enumerate(validation_images):
-    references[img2idx[image]] = [c for c in val_ann_dict[image] if len(c.split()) <20][:2]
-generated_sentences = ["*"]*len(references)
+# for idx, image in enumerate(validation_images):
+#     references[img2idx[image]] = [c for c in val_ann_dict[image] if len(c.split()) <20][:2]
+
     # for idx, d in enumerate(val_ann):
     #     if d["image"] in validation_images:
     #         references[img2idx[d["image"]]] = random.choices(d["caption"], k=2)
 
 # Modify this number if you want to annotate only a subset:
-total = len(validation_images)#len(references) # Change len(reference) to e.g. 100
+total = 20#len(validation_images)#len(references) # Change len(reference) to e.g. 100
 congruency = dict()
 
-assert len(references) == len(validation_images)
-assert len(references) == len(generated_sentences)
-print("Successfully loaded the data.")
+# assert len(references) == len(validation_images)
+# assert len(references) == len(generated_sentences)
+# print("Successfully loaded the data.")
 
 def congruency_indices(d,judgment):
     "Return indices from d for all items that have a particular judgment."
@@ -100,6 +127,7 @@ def main_page(i = 0):
     Right now it's just useful to see how the template works.
     """
     # Start at the beginning.
+    set_id, validation_images, img2idx, idx2img, references, generated_sentences = get_ann_set()
     print(os.path.join(IMAGE_PATH, validation_images[i]))
     return render_template('index.html',
                             number=i,
@@ -260,19 +288,13 @@ def categorize_incongruent():
                             generated=generated_sentences[i],
                             image=IMAGE_PATH + validation_images[i])
 
-
 @app.route('/categorize_sd_errors/',methods=['GET','POST'])
 def categorize_sd_errors():
     # retrieval random set from validation sets
-    set_id = random.randint(0, 4)
-    validation_images = validation_sets[set_id]
-    # for image in validation_images:
-    # if not os.path.exists(os.path.join("/Users/wli/ErrorAnalysis/static/val_sd_v1-5_finetuned/top_images",  image)):
-    #     shutil.copy(os.path.join("/Users/wli/ErrorAnalysis/static/val_sd_v1-5_finetuned/images",  image), os.path.join("/Users/wli/ErrorAnalysis/static/val_sd_v1-5_finetuned/top_images",  image))
-    # Get generated sentences.
-    # generated_sentences = [d["caption"] for d in val_data]
-    img2idx = {img: i for i, img in enumerate(validation_images)}
-    idx2img = {i: img for i, img in enumerate(validation_images)}
+    # set_id = random.randint(0, 4)
+    # validation_images = validation_sets[set_id]
+    # img2idx = {img: i for i, img in enumerate(validation_images)}
+    # idx2img = {i: img for i, img in enumerate(validation_images)}
 
     # Load all the reference sentences.
     for idx, image in enumerate(validation_images):
@@ -302,8 +324,8 @@ def categorize_sd_errors():
         features = request.form.getlist('feature')
         comments = request.form.get('textbox')
         incongruent_categories[idx] = {"categories": features, "comments": comments, "img":idx2img[idx]}
-        print(features)
-        print(incongruent_categories)
+        # print(features)
+        # print(incongruent_categories)
         # Write out the data.
         # Get the index for the next incongruent image.
         next_index = idx + 1
