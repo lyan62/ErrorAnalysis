@@ -386,17 +386,17 @@ def categorize_sd_errors_0():
     total_congruent = len(congruent)
     total_incongruent = min(len(incongruent), total)
 
-    global incongruent_categories_0
+    global incongruent_categories
     if request.method == 'GET':
         next_index = 0
-        incongruent_categories_0 = dict()
+        incongruent_categories = dict()
     else:
         # Get information about the categorized description.
         idx = int(request.form['number'])
         categorized = sd_congruency[idx]
         features = request.form.getlist('feature')
         comments = request.form.get('textbox')
-        incongruent_categories_0[idx] = {"categories": features, "comments": comments, "img":idx2img[idx]}
+        incongruent_categories[idx] = {"categories": features, "comments": comments, "img":idx2img[idx]}
         # print(features)
         # print(incongruent_categories)
         # Write out the data.
@@ -406,7 +406,7 @@ def categorize_sd_errors_0():
             ts = round(datetime.now().timestamp())
             output_path = os.path.join(output_folder, "sd_categorized_%d_%s.json" % (set_id, str(ts)))
             with open(output_path, 'w') as f:
-                json.dump(incongruent_categories_0, f)
+                json.dump(incongruent_categories, f)
 
             print("uploading to huggingface")
             api.upload_file(
@@ -461,17 +461,17 @@ def categorize_sd_errors_1():
     total_congruent = len(congruent)
     total_incongruent = min(len(incongruent), total)
 
-    global incongruent_categories_1
+    global incongruent_categories
     if request.method == 'GET':
         next_index = 0
-        incongruent_categories_1 = dict()
+        incongruent_categories = dict()
     else:
         # Get information about the categorized description.
         idx = int(request.form['number'])
         categorized = sd_congruency[idx]
         features = request.form.getlist('feature')
         comments = request.form.get('textbox')
-        incongruent_categories_1[idx] = {"categories": features, "comments": comments, "img":idx2img[idx]}
+        incongruent_categories[idx] = {"categories": features, "comments": comments, "img":idx2img[idx]}
         # print(features)
         # print(incongruent_categories)
         # Write out the data.
@@ -481,7 +481,7 @@ def categorize_sd_errors_1():
             ts = round(datetime.now().timestamp())
             output_path = os.path.join(output_folder, "sd_categorized_%d_%s.json" % (set_id, str(ts)))
             with open(output_path, 'w') as f:
-                json.dump(incongruent_categories_1, f)
+                json.dump(incongruent_categories, f)
 
             print("uploading to huggingface")
             api.upload_file(
@@ -534,7 +534,7 @@ def categorize_sd_errors_2():
     total_congruent = len(congruent)
     total_incongruent = min(len(incongruent), total)
 
-    global incongruent_categories_2
+    global incongruent_categories
     if request.method == 'GET':
         next_index = 0
         incongruent_categories = dict()
@@ -544,7 +544,7 @@ def categorize_sd_errors_2():
         categorized = sd_congruency[idx]
         features = request.form.getlist('feature')
         comments = request.form.get('textbox')
-        incongruent_categories_2[idx] = {"categories": features, "comments": comments, "img":idx2img[idx]}
+        incongruent_categories[idx] = {"categories": features, "comments": comments, "img":idx2img[idx]}
         # print(features)
         # print(incongruent_categories)
         # Write out the data.
@@ -554,7 +554,7 @@ def categorize_sd_errors_2():
             ts = round(datetime.now().timestamp())
             output_path = os.path.join(output_folder, "sd_categorized_%d_%s.json" % (set_id, str(ts)))
             with open(output_path, 'w') as f:
-                json.dump(incongruent_categories_2, f)
+                json.dump(incongruent_categories, f)
 
             print("uploading to huggingface")
             api.upload_file(
@@ -608,7 +608,7 @@ def categorize_sd_errors_3():
     total_congruent = len(congruent)
     total_incongruent = min(len(incongruent), total)
 
-    global incongruent_categories_3
+    global incongruent_categories
     if request.method == 'GET':
         next_index = 0
         incongruent_categories = dict()
@@ -618,7 +618,7 @@ def categorize_sd_errors_3():
         categorized = sd_congruency[idx]
         features = request.form.getlist('feature')
         comments = request.form.get('textbox')
-        incongruent_categories_3[idx] = {"categories": features, "comments": comments, "img":idx2img[idx]}
+        incongruent_categories[idx] = {"categories": features, "comments": comments, "img":idx2img[idx]}
         # print(features)
         # print(incongruent_categories)
         # Write out the data.
@@ -628,7 +628,7 @@ def categorize_sd_errors_3():
             ts = round(datetime.now().timestamp())
             output_path = os.path.join(output_folder, "sd_categorized_%d_%s.json" % (set_id, str(ts)))
             with open(output_path, 'w') as f:
-                json.dump(incongruent_categories_3, f)
+                json.dump(incongruent_categories, f)
 
             print("uploading to huggingface")
             api.upload_file(
@@ -682,10 +682,10 @@ def categorize_sd_errors_4():
     total_congruent = len(congruent)
     total_incongruent = min(len(incongruent), total)
 
-    global incongruent_categories_4
+    global incongruent_categories
     if request.method == 'GET':
         next_index = 0
-        incongruent_categories_4 = dict()
+        incongruent_categories = dict()
     else:
         # Get information about the categorized description.
         idx = int(request.form['number'])
@@ -702,7 +702,7 @@ def categorize_sd_errors_4():
             ts = round(datetime.now().timestamp())
             output_path = os.path.join(output_folder, "sd_categorized_%d_%s.json" % (set_id, str(ts)))
             with open(output_path, 'w') as f:
-                json.dump(incongruent_categories_4, f)
+                json.dump(incongruent_categories, f)
 
             print("uploading to huggingface")
             api.upload_file(
