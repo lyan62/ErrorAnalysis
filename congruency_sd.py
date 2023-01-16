@@ -323,6 +323,19 @@ def categorize_sd_errors():
         incongruent_categories[idx] = {"categories": features, "comments": comments, "img": idx2img[idx]}
         # print(features)
         # print(incongruent_categories)
+        ts = round(datetime.now().timestamp())
+        img_ann_path = os.path.join(output_folder, "sd_categorized_%d_%s_%s.json" % (set_id, str(ts), idx2img[idx].strip(".jpg")))
+        with open(img_ann_path, 'w') as img_ann_f:
+            json.dump({"categories": features, "comments": comments, "img": idx2img[idx]}, img_ann_f)
+
+        print("uploading img_ann to huggingface")
+        api.upload_file(
+            path_or_fileobj=img_ann_path,
+            path_in_repo=os.path.basename(img_ann_path),
+            repo_id="lyan62/sd-error-imgs",
+            repo_type="dataset",
+            token="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"
+        )
         # Write out the data.
         # Get the index for the next incongruent image.
         next_index = idx + 1
@@ -349,7 +362,7 @@ def categorize_sd_errors():
         return render_template('done.html',
                                message="Please load the congruency data from disk.")
     return render_template('categorize_sd_errors.html',
-                           task_url='/categorize_sd_errors/%d'%set_id,
+                           task_url='/categorize_sd_errors/'+str(set_id),
                            number=i,
                            congruency_index=next_index,
                            total=total,
@@ -357,9 +370,6 @@ def categorize_sd_errors():
                            refs=references[i],
                            generated="",  # generated_sentences[i],
                            image=IMAGE_PATH + validation_images[i])
-
-
-
 
 @app.route('/categorize_sd_errors/0',methods=['GET','POST'])
 def categorize_sd_errors_0():
@@ -398,10 +408,25 @@ def categorize_sd_errors_0():
         comments = request.form.get('textbox')
         incongruent_categories[idx] = {"categories": features, "comments": comments, "img":idx2img[idx]}
         # print(features)
-        # print(incongruent_categories)
+        print(incongruent_categories)
         # Write out the data.
         # Get the index for the next incongruent image.
         next_index = idx + 1
+        ts = round(datetime.now().timestamp())
+        img_ann_path = os.path.join(output_folder,
+                                    "sd_categorized_%d_%s_%s.json" % (set_id, str(ts), idx2img[idx].strip(".jpg")))
+        with open(img_ann_path, 'w') as img_ann_f:
+            json.dump({"categories": features, "comments": comments, "img": idx2img[idx]}, img_ann_f)
+
+        print("uploading img_ann to huggingface")
+        api.upload_file(
+            path_or_fileobj=img_ann_path,
+            path_in_repo=os.path.basename(img_ann_path),
+            repo_id="lyan62/sd-error-imgs",
+            repo_type="dataset",
+            token="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"
+        )
+
         if next_index == total:
             ts = round(datetime.now().timestamp())
             output_path = os.path.join(output_folder, "sd_categorized_%d_%s.json" % (set_id, str(ts)))
@@ -473,10 +498,25 @@ def categorize_sd_errors_1():
         comments = request.form.get('textbox')
         incongruent_categories[idx] = {"categories": features, "comments": comments, "img":idx2img[idx]}
         # print(features)
-        # print(incongruent_categories)
+        print(incongruent_categories)
         # Write out the data.
         # Get the index for the next incongruent image.
         next_index = idx + 1
+        ts = round(datetime.now().timestamp())
+        img_ann_path = os.path.join(output_folder,
+                                    "sd_categorized_%d_%s_%s.json" % (set_id, str(ts), idx2img[idx].strip(".jpg")))
+        with open(img_ann_path, 'w') as img_ann_f:
+            json.dump({"categories": features, "comments": comments, "img": idx2img[idx]}, img_ann_f)
+
+        print("uploading img_ann to huggingface")
+        api.upload_file(
+            path_or_fileobj=img_ann_path,
+            path_in_repo=os.path.basename(img_ann_path),
+            repo_id="lyan62/sd-error-imgs",
+            repo_type="dataset",
+            token="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"
+        )
+
         if next_index == total:
             ts = round(datetime.now().timestamp())
             output_path = os.path.join(output_folder, "sd_categorized_%d_%s.json" % (set_id, str(ts)))
@@ -550,6 +590,22 @@ def categorize_sd_errors_2():
         # Write out the data.
         # Get the index for the next incongruent image.
         next_index = idx + 1
+
+        ts = round(datetime.now().timestamp())
+        img_ann_path = os.path.join(output_folder,
+                                    "sd_categorized_%d_%s_%s.json" % (set_id, str(ts), idx2img[idx].strip(".jpg")))
+        with open(img_ann_path, 'w') as img_ann_f:
+            json.dump({"categories": features, "comments": comments, "img": idx2img[idx]}, img_ann_f)
+
+        print("uploading img_ann to huggingface")
+        api.upload_file(
+            path_or_fileobj=img_ann_path,
+            path_in_repo=os.path.basename(img_ann_path),
+            repo_id="lyan62/sd-error-imgs",
+            repo_type="dataset",
+            token="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"
+        )
+
         if next_index == total:
             ts = round(datetime.now().timestamp())
             output_path = os.path.join(output_folder, "sd_categorized_%d_%s.json" % (set_id, str(ts)))
@@ -624,6 +680,22 @@ def categorize_sd_errors_3():
         # Write out the data.
         # Get the index for the next incongruent image.
         next_index = idx + 1
+
+        ts = round(datetime.now().timestamp())
+        img_ann_path = os.path.join(output_folder,
+                                    "sd_categorized_%d_%s_%s.json" % (set_id, str(ts), idx2img[idx].strip(".jpg")))
+        with open(img_ann_path, 'w') as img_ann_f:
+            json.dump({"categories": features, "comments": comments, "img": idx2img[idx]}, img_ann_f)
+
+        print("uploading img_ann to huggingface")
+        api.upload_file(
+            path_or_fileobj=img_ann_path,
+            path_in_repo=os.path.basename(img_ann_path),
+            repo_id="lyan62/sd-error-imgs",
+            repo_type="dataset",
+            token="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"
+        )
+
         if next_index == total:
             ts = round(datetime.now().timestamp())
             output_path = os.path.join(output_folder, "sd_categorized_%d_%s.json" % (set_id, str(ts)))
@@ -698,6 +770,22 @@ def categorize_sd_errors_4():
         # Write out the data.
         # Get the index for the next incongruent image.
         next_index = idx + 1
+
+        ts = round(datetime.now().timestamp())
+        img_ann_path = os.path.join(output_folder,
+                                    "sd_categorized_%d_%s_%s.json" % (set_id, str(ts), idx2img[idx].strip(".jpg")))
+        with open(img_ann_path, 'w') as img_ann_f:
+            json.dump({"categories": features, "comments": comments, "img": idx2img[idx]}, img_ann_f)
+
+        print("uploading img_ann to huggingface")
+        api.upload_file(
+            path_or_fileobj=img_ann_path,
+            path_in_repo=os.path.basename(img_ann_path),
+            repo_id="lyan62/sd-error-imgs",
+            repo_type="dataset",
+            token="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"
+        )
+
         if next_index == total:
             ts = round(datetime.now().timestamp())
             output_path = os.path.join(output_folder, "sd_categorized_%d_%s.json" % (set_id, str(ts)))
