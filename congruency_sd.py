@@ -66,12 +66,12 @@ def build_validation_sets():
     return validation_sets
 
 def get_ann_set():
-    global set_id
-    global validation_images
-    global img2idx
-    global idx2img
-    global references
-    global generated_sentences
+    # global set_id
+    # global validation_images
+    # global img2idx
+    # global idx2img
+    # global references
+    # global generated_sentences
 
     set_id = random.randint(0, 4)
     validation_images = validation_sets[set_id]
@@ -109,7 +109,7 @@ with open("static/val_sd_v1-5_finetuned/ann_sets.json", "r") as ann_json:
 # Modify this number if you want to annotate only a subset:
 total = 20#len(validation_images)#len(references) # Change len(reference) to e.g. 100
 congruency = dict()
-
+set_id, validation_images, img2idx, idx2img, references, generated_sentences = get_ann_set()
 # assert len(references) == len(validation_images)
 # assert len(references) == len(generated_sentences)
 # print("Successfully loaded the data.")
@@ -118,14 +118,14 @@ def congruency_indices(d,judgment):
     "Return indices from d for all items that have a particular judgment."
     return sorted(i for i,j in d.items() if j == judgment)
 
-@app.route("/", methods=['GET'])
+@app.route("/", methods=['POST', 'GET'])
 def main_page(i = 0):
     """
     Main page. Might be extended to quickly go to a particular image.
     Right now it's just useful to see how the template works.
     """
     # Start at the beginning.
-    set_id, validation_images, img2idx, idx2img, references, generated_sentences = get_ann_set()
+    # set_id, validation_images, img2idx, idx2img, references, generated_sentences = get_ann_set()
     print(os.path.join(IMAGE_PATH, validation_images[i]))
     return render_template('index.html',
                             number=i,
@@ -286,13 +286,88 @@ def categorize_incongruent():
                             generated=generated_sentences[i],
                             image=IMAGE_PATH + validation_images[i])
 
-@app.route('/categorize_sd_errors/',methods=['GET','POST'])
+@app.route('/categorize_sd_errors/',methods=['GET'])
 def categorize_sd_errors():
+    set_id = random.randint(0, 4)
+    validation_images = validation_sets[set_id]
+    img2idx = {img: i for i, img in enumerate(validation_images)}
+    idx2img = {i: img for i, img in enumerate(validation_images)}
+
+    # Load all the reference sentences.
+    for idx, image in enumerate(validation_images):
+        references[img2idx[image]] = [c for c in val_ann_dict[image] if len(c.split()) < 20][:2]
+
+    # "Categorize the incongruent descriptions according to different error categories."
+    # creaste sudo congruency data
+    output_folder = os.path.join(os.getcwd(), "annotated")
+    os.makedirs(output_folder, exist_ok=True)
+    with open('sd_data.json', 'w') as f:
+        sd_congruency = {i: "incongruent" for i in range(len(img2idx))}
+        json.dump(sd_congruency, f)
+
+    incongruent = dict(enumerate(congruency_indices(sd_congruency, 'incongruent')))
+    congruent = dict(enumerate(congruency_indices(congruency, 'congruent')))
+    total_congruent = len(congruent)
+    total_incongruent = min(len(incongruent), total)
+
+    global incongruent_categories
+    if request.method == 'GET':
+        next_index = 0
+        incongruent_categories = dict()
+    else:
+        # Get information about the categorized description.
+        idx = int(request.form['number'])
+        categorized = sd_congruency[idx]
+        features = request.form.getlist('feature')
+        comments = request.form.get('textbox')
+        incongruent_categories[idx] = {"categories": features, "comments": comments, "img": idx2img[idx]}
+        # print(features)
+        # print(incongruent_categories)
+        # Write out the data.
+        # Get the index for the next incongruent image.
+        next_index = idx + 1
+        if next_index == total:
+            ts = round(datetime.now().timestamp())
+            output_path = os.path.join(output_folder, "sd_categorized_%d_%s.json" % (set_id, str(ts)))
+            with open(output_path, 'w') as f:
+                json.dump(incongruent_categories, f)
+
+            print("uploading to huggingface")
+            api.upload_file(
+                path_or_fileobj=output_path,
+                path_in_repo=os.path.basename(output_path),
+                repo_id="lyan62/sd-errors",
+                repo_type="dataset",
+                token="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"
+            )
+            # Show the user that we are finished.
+            return render_template('done.html',
+                                   message="Saved judgment data to file: %s" % output_path)
+    try:
+        i = incongruent[next_index]
+    except NameError:
+        return render_template('done.html',
+                               message="Please load the congruency data from disk.")
+    return render_template('categorize_sd_errors.html',
+                           task_url='/categorize_sd_errors/%d'%set_id,
+                           number=i,
+                           congruency_index=next_index,
+                           total=total,
+                           category_total=total_incongruent,
+                           refs=references[i],
+                           generated="",  # generated_sentences[i],
+                           image=IMAGE_PATH + validation_images[i])
+
+
+
+
+@app.route('/categorize_sd_errors/0',methods=['GET','POST'])
+def categorize_sd_errors_0():
     # retrieval random set from validation sets
     # set_id = random.randint(0, 4)
-    # validation_images = validation_sets[set_id]
-    # img2idx = {img: i for i, img in enumerate(validation_images)}
-    # idx2img = {i: img for i, img in enumerate(validation_images)}
+    validation_images = validation_sets[0]
+    img2idx = {img: i for i, img in enumerate(validation_images)}
+    idx2img = {i: img for i, img in enumerate(validation_images)}
 
     # Load all the reference sentences.
     for idx, image in enumerate(validation_images):
@@ -350,7 +425,303 @@ def categorize_sd_errors():
         return render_template('done.html',
                                 message="Please load the congruency data from disk.")
     return render_template('categorize_sd_errors.html',
-                            task_url='/categorize_sd_errors/',
+                            task_url='/categorize_sd_errors/0',
+                            number=i,
+                            congruency_index=next_index,
+                            total=total,
+                            category_total=total_incongruent,
+                            refs=references[i],
+                            generated="",#generated_sentences[i],
+                            image=IMAGE_PATH + validation_images[i])
+
+
+@app.route('/categorize_sd_errors/1',methods=['GET','POST'])
+def categorize_sd_errors_1():
+    # retrieval random set from validation sets
+    # set_id = random.randint(0, 4)
+    set_id=1
+    validation_images = validation_sets[set_id]
+    img2idx = {img: i for i, img in enumerate(validation_images)}
+    idx2img = {i: img for i, img in enumerate(validation_images)}
+
+    # Load all the reference sentences.
+    for idx, image in enumerate(validation_images):
+        references[img2idx[image]] = [c for c in val_ann_dict[image] if len(c.split()) < 20][:2]
+
+    #"Categorize the incongruent descriptions according to different error categories."
+    # creaste sudo congruency data
+    output_folder = os.path.join(os.getcwd(), "annotated")
+    os.makedirs(output_folder, exist_ok=True)
+    with open('sd_data.json', 'w') as f:
+        sd_congruency = {i: "incongruent" for i in range(len(img2idx))}
+        json.dump(sd_congruency, f)
+
+    incongruent = dict(enumerate(congruency_indices(sd_congruency, 'incongruent')))
+    congruent = dict(enumerate(congruency_indices(congruency, 'congruent')))
+    total_congruent = len(congruent)
+    total_incongruent = min(len(incongruent), total)
+
+    global incongruent_categories
+    if request.method == 'GET':
+        next_index = 0
+        incongruent_categories = dict()
+    else:
+        # Get information about the categorized description.
+        idx = int(request.form['number'])
+        categorized = sd_congruency[idx]
+        features = request.form.getlist('feature')
+        comments = request.form.get('textbox')
+        incongruent_categories[idx] = {"categories": features, "comments": comments, "img":idx2img[idx]}
+        # print(features)
+        # print(incongruent_categories)
+        # Write out the data.
+        # Get the index for the next incongruent image.
+        next_index = idx + 1
+        if next_index == total:
+            ts = round(datetime.now().timestamp())
+            output_path = os.path.join(output_folder, "sd_categorized_%d_%s.json" % (set_id, str(ts)))
+            with open(output_path, 'w') as f:
+                json.dump(incongruent_categories, f)
+
+            print("uploading to huggingface")
+            api.upload_file(
+                path_or_fileobj=output_path,
+                path_in_repo=os.path.basename(output_path),
+                repo_id="lyan62/sd-errors",
+                repo_type="dataset",
+                token="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"
+            )
+            # Show the user that we are finished.
+            return render_template('done.html',
+                                    message="Saved judgment data to file: %s" % output_path)
+    try:
+        i = incongruent[next_index]
+    except NameError:
+        return render_template('done.html',
+                                message="Please load the congruency data from disk.")
+    return render_template('categorize_sd_errors.html',
+                            task_url='/categorize_sd_errors/1',
+                            number=i,
+                            congruency_index=next_index,
+                            total=total,
+                            category_total=total_incongruent,
+                            refs=references[i],
+                            generated="",#generated_sentences[i],
+                            image=IMAGE_PATH + validation_images[i])
+@app.route('/categorize_sd_errors/2',methods=['GET','POST'])
+def categorize_sd_errors_2():
+    # retrieval random set from validation sets
+    # set_id = random.randint(0, 4)
+    set_id=2
+    validation_images = validation_sets[set_id]
+    img2idx = {img: i for i, img in enumerate(validation_images)}
+    idx2img = {i: img for i, img in enumerate(validation_images)}
+
+    # Load all the reference sentences.
+    for idx, image in enumerate(validation_images):
+        references[img2idx[image]] = [c for c in val_ann_dict[image] if len(c.split()) < 20][:2]
+
+    #"Categorize the incongruent descriptions according to different error categories."
+    # creaste sudo congruency data
+    output_folder = os.path.join(os.getcwd(), "annotated")
+    os.makedirs(output_folder, exist_ok=True)
+    with open('sd_data.json', 'w') as f:
+        sd_congruency = {i: "incongruent" for i in range(len(img2idx))}
+        json.dump(sd_congruency, f)
+
+    incongruent = dict(enumerate(congruency_indices(sd_congruency, 'incongruent')))
+    congruent = dict(enumerate(congruency_indices(congruency, 'congruent')))
+    total_congruent = len(congruent)
+    total_incongruent = min(len(incongruent), total)
+
+    global incongruent_categories
+    if request.method == 'GET':
+        next_index = 0
+        incongruent_categories = dict()
+    else:
+        # Get information about the categorized description.
+        idx = int(request.form['number'])
+        categorized = sd_congruency[idx]
+        features = request.form.getlist('feature')
+        comments = request.form.get('textbox')
+        incongruent_categories[idx] = {"categories": features, "comments": comments, "img":idx2img[idx]}
+        # print(features)
+        # print(incongruent_categories)
+        # Write out the data.
+        # Get the index for the next incongruent image.
+        next_index = idx + 1
+        if next_index == total:
+            ts = round(datetime.now().timestamp())
+            output_path = os.path.join(output_folder, "sd_categorized_%d_%s.json" % (set_id, str(ts)))
+            with open(output_path, 'w') as f:
+                json.dump(incongruent_categories, f)
+
+            print("uploading to huggingface")
+            api.upload_file(
+                path_or_fileobj=output_path,
+                path_in_repo=os.path.basename(output_path),
+                repo_id="lyan62/sd-errors",
+                repo_type="dataset",
+                token="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"
+            )
+            # Show the user that we are finished.
+            return render_template('done.html',
+                                    message="Saved judgment data to file: %s" % output_path)
+    try:
+        i = incongruent[next_index]
+    except NameError:
+        return render_template('done.html',
+                                message="Please load the congruency data from disk.")
+    return render_template('categorize_sd_errors.html',
+                            task_url='/categorize_sd_errors/2',
+                            number=i,
+                            congruency_index=next_index,
+                            total=total,
+                            category_total=total_incongruent,
+                            refs=references[i],
+                            generated="",#generated_sentences[i],
+                            image=IMAGE_PATH + validation_images[i])
+
+@app.route('/categorize_sd_errors/3',methods=['GET','POST'])
+def categorize_sd_errors_3():
+    # retrieval random set from validation sets
+    # set_id = random.randint(0, 4)
+    set_id=3
+    validation_images = validation_sets[set_id]
+    img2idx = {img: i for i, img in enumerate(validation_images)}
+    idx2img = {i: img for i, img in enumerate(validation_images)}
+
+    # Load all the reference sentences.
+    for idx, image in enumerate(validation_images):
+        references[img2idx[image]] = [c for c in val_ann_dict[image] if len(c.split()) < 20][:2]
+
+    #"Categorize the incongruent descriptions according to different error categories."
+    # creaste sudo congruency data
+    output_folder = os.path.join(os.getcwd(), "annotated")
+    os.makedirs(output_folder, exist_ok=True)
+    with open('sd_data.json', 'w') as f:
+        sd_congruency = {i: "incongruent" for i in range(len(img2idx))}
+        json.dump(sd_congruency, f)
+
+    incongruent = dict(enumerate(congruency_indices(sd_congruency, 'incongruent')))
+    congruent = dict(enumerate(congruency_indices(congruency, 'congruent')))
+    total_congruent = len(congruent)
+    total_incongruent = min(len(incongruent), total)
+
+    global incongruent_categories
+    if request.method == 'GET':
+        next_index = 0
+        incongruent_categories = dict()
+    else:
+        # Get information about the categorized description.
+        idx = int(request.form['number'])
+        categorized = sd_congruency[idx]
+        features = request.form.getlist('feature')
+        comments = request.form.get('textbox')
+        incongruent_categories[idx] = {"categories": features, "comments": comments, "img":idx2img[idx]}
+        # print(features)
+        # print(incongruent_categories)
+        # Write out the data.
+        # Get the index for the next incongruent image.
+        next_index = idx + 1
+        if next_index == total:
+            ts = round(datetime.now().timestamp())
+            output_path = os.path.join(output_folder, "sd_categorized_%d_%s.json" % (set_id, str(ts)))
+            with open(output_path, 'w') as f:
+                json.dump(incongruent_categories, f)
+
+            print("uploading to huggingface")
+            api.upload_file(
+                path_or_fileobj=output_path,
+                path_in_repo=os.path.basename(output_path),
+                repo_id="lyan62/sd-errors",
+                repo_type="dataset",
+                token="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"
+            )
+            # Show the user that we are finished.
+            return render_template('done.html',
+                                    message="Saved judgment data to file: %s" % output_path)
+    try:
+        i = incongruent[next_index]
+    except NameError:
+        return render_template('done.html',
+                                message="Please load the congruency data from disk.")
+    return render_template('categorize_sd_errors.html',
+                            task_url='/categorize_sd_errors/3',
+                            number=i,
+                            congruency_index=next_index,
+                            total=total,
+                            category_total=total_incongruent,
+                            refs=references[i],
+                            generated="",#generated_sentences[i],
+                            image=IMAGE_PATH + validation_images[i])
+
+@app.route('/categorize_sd_errors/4',methods=['GET','POST'])
+def categorize_sd_errors_4():
+    # retrieval random set from validation sets
+    # set_id = random.randint(0, 4)
+    set_id=4
+    validation_images = validation_sets[set_id]
+    img2idx = {img: i for i, img in enumerate(validation_images)}
+    idx2img = {i: img for i, img in enumerate(validation_images)}
+
+    # Load all the reference sentences.
+    for idx, image in enumerate(validation_images):
+        references[img2idx[image]] = [c for c in val_ann_dict[image] if len(c.split()) < 20][:2]
+
+    #"Categorize the incongruent descriptions according to different error categories."
+    # creaste sudo congruency data
+    output_folder = os.path.join(os.getcwd(), "annotated")
+    os.makedirs(output_folder, exist_ok=True)
+    with open('sd_data.json', 'w') as f:
+        sd_congruency = {i: "incongruent" for i in range(len(img2idx))}
+        json.dump(sd_congruency, f)
+
+    incongruent = dict(enumerate(congruency_indices(sd_congruency, 'incongruent')))
+    congruent = dict(enumerate(congruency_indices(congruency, 'congruent')))
+    total_congruent = len(congruent)
+    total_incongruent = min(len(incongruent), total)
+
+    global incongruent_categories
+    if request.method == 'GET':
+        next_index = 0
+        incongruent_categories = dict()
+    else:
+        # Get information about the categorized description.
+        idx = int(request.form['number'])
+        categorized = sd_congruency[idx]
+        features = request.form.getlist('feature')
+        comments = request.form.get('textbox')
+        incongruent_categories[idx] = {"categories": features, "comments": comments, "img":idx2img[idx]}
+        # print(features)
+        # print(incongruent_categories)
+        # Write out the data.
+        # Get the index for the next incongruent image.
+        next_index = idx + 1
+        if next_index == total:
+            ts = round(datetime.now().timestamp())
+            output_path = os.path.join(output_folder, "sd_categorized_%d_%s.json" % (set_id, str(ts)))
+            with open(output_path, 'w') as f:
+                json.dump(incongruent_categories, f)
+
+            print("uploading to huggingface")
+            api.upload_file(
+                path_or_fileobj=output_path,
+                path_in_repo=os.path.basename(output_path),
+                repo_id="lyan62/sd-errors",
+                repo_type="dataset",
+                token="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"
+            )
+            # Show the user that we are finished.
+            return render_template('done.html',
+                                    message="Saved judgment data to file: %s" % output_path)
+    try:
+        i = incongruent[next_index]
+    except NameError:
+        return render_template('done.html',
+                                message="Please load the congruency data from disk.")
+    return render_template('categorize_sd_errors.html',
+                            task_url='/categorize_sd_errors/4',
                             number=i,
                             congruency_index=next_index,
                             total=total,
