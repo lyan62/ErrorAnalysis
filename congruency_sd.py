@@ -320,7 +320,11 @@ def categorize_sd_errors():
 
     if request.method == 'GET':
         next_index = 0
-        incongruent_categories = dict()
+        try:
+            if not incongruent_categories or len(incongruent_categories) == 0:
+                incongruent_categories = dict()
+        except:
+            incongruent_categories = dict()
         incongruent_categories_0 = deepcopy(incongruent_categories)
         incongruent_categories_1 = deepcopy(incongruent_categories)
         incongruent_categories_2 = deepcopy(incongruent_categories)
@@ -411,7 +415,7 @@ def categorize_sd_errors_0():
     global incongruent_categories_0
     if request.method == 'GET':
         next_index = 0
-        incongruent_categories = dict()
+        incongruent_categories_0 = dict()
     else:
         # Get information about the categorized description.
         idx = int(request.form['number'])
