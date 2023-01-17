@@ -391,6 +391,7 @@ def categorize_sd_errors():
 def categorize_sd_errors_0():
     # retrieval random set from validation sets
     # set_id = random.randint(0, 4)
+    set_id = 0
     validation_images = validation_sets[0]
     img2idx = {img: i for i, img in enumerate(validation_images)}
     idx2img = {i: img for i, img in enumerate(validation_images)}
